@@ -84,8 +84,8 @@ Iden: SNPID_2, RSID: RSID_2, CHR: 1, POS: 2000, Alleles: OrderedDict([(1, [u'A']
 >> B_test.save_indices('/home/username/bgen/')
 ```
 
-This will save idices files 'example.bgen_ind.npy' to chosen folder.
-Nest time you can directly load this info
+This will save indices files 'example.bgen_ind.npy' to chosen folder.
+Next time you can directly load this info
 ```
 >> B_test=pybgen.Bgen('example.bgen')
 >> B_test.load_indices(/home/username/bgen/example.bgen_ind.npy)
