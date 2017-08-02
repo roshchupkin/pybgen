@@ -231,10 +231,13 @@ class Bgen(object):
 
     def __init__(self, path):
         self.path = path
+        self.name = os.path.basename(self.path)
         self.bgen = None
         self.bgen = open(self.path)
         self.size = os.path.getsize(self.path)
         print ('File zise is {} bytes'.format(self.size))
+        self.identifier_block =None
+        self._indices=False
 
         try:
             self.offset = ba.bitarray(endian="little")
@@ -329,4 +332,39 @@ class Bgen(object):
                 self.seek(f, start)
                 probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
                 return probe
+
+
+    def get_indices(self):
+        while True:
+            try:
+                probe_tmp=self.get_next_probe()
+                if probe_tmp is None:
+                    self._indices=True
+                    break
+            except Exception, e:
+                self._indices = True
+                print e
+                break
+
+    def save_indices(self, path):
+        if self._indices:
+            dict_tmp={'name':self.name,'probes':self.probes_info}
+            np.save(os.path.join(path,self.name+ '_ind.npy'),dict_tmp)
+
+
+    def load_indices(self,path, ovewrite=False):
+        dict_tmp=np.load(path).item()
+        if self.name!=dict_tmp['name']:
+            raise ValueError("Indices file name {} != bgen {} name ".format(dict_tmp['name'], self.name))
+
+        else:
+            if len(self.probes_info)!=0 and not ovewrite:
+                raise ValueError('Porbes info not empty! If you want to load indices anyway use ovewrite=True parameter.')
+
+            else:
+                self.probes_info=dict_tmp['probes']
+
+
+    def info(self):
+        print ("Name:{}; N samples:{}; N probes:{}; Compression:{}; Layout:{}".format(self.name,self.N_ind, self.N_probes, self.compression, self.layout))
 
