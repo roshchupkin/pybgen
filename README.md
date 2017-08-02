@@ -21,8 +21,8 @@ Want to convert to more efficient data format? Check  [HASE](https://github.com/
 ## Installation
 1. `git clone  https://github.com/roshchupkin/pybgen.git`
 2. Add path to the cloned repository into your python search:
-a. `export PYTHONPATH=$PYTHONPATH:{path to pybgen folder}`
-b. inside python:
+    * `export PYTHONPATH=$PYTHONPATH:{path to pybgen folder}`
+    * Or inside python:
 ```
 >> import sys
 >> sys.path.append(path to pybgen folder)
