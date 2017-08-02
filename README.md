@@ -3,6 +3,17 @@
 This parser is a part of the [HASE](https://github.com/roshchupkin/hase) framework for fast HD GWAS analysis, and provides just basic API for bgen data files reading and manipulation.
 Below you can find several examples how you can get data in python format for further analysis.
 
+## Support
+* bgen v1.1; 1.2; 1.3
+* Layout 1,2
+
+## Does not support
+* Ploidy > 2
+* Number of allele > 2
+* Phase data
+
+**coming soon ...**
+
 ## Installation
 1. `git clone  https://github.com/roshchupkin/pybgen.git`
 2. Add path to the cloned repository into your python search:
