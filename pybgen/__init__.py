@@ -47,6 +47,13 @@ class Bgen_probe(object):
         self.layout = layout
         self.N_ind = N_ind
         self.alleles = OrderedDict()
+        self.type_dict = {
+                    8:np.uint8,
+                    16: np.uint16,
+                    32: np.uint32,
+                    64: np.uint64
+                            }
+
         if self.layout == 1:
             self.N = ba.bitarray(endian="little")
             self.N.fromfile(bgen, 4)
@@ -78,7 +85,7 @@ class Bgen_probe(object):
 
         self.CHR = ba.bitarray(endian="little")
         self.CHR.fromfile(bgen, self.len_chr)
-        self.CHR = self.CHR.tostring()
+        self.CHR = int(self.CHR.tostring())
 
         self.POS = ba.bitarray(endian="little")
         self.POS.fromfile(bgen, 4)
@@ -176,6 +183,8 @@ class Bgen_probe(object):
             self.genotypes = (np.array([2, 1, 0]).reshape(3, 1) * self.genotypes).sum(axis=0)
         else:
             genotypes_byte_unzip = self.decompression()
+            if len(genotypes_byte_unzip) != self.genotypes_length_uncom:
+                raise ValueError('Uncompressed length != length from headers')
             self.N = struct.unpack("<L", genotypes_byte_unzip[:4])[0]
             if self.N != self.N_ind:
                 raise ValueError('probe #subjects {} != bgen file #{} '.format(self.N, self.N_ind))
@@ -186,17 +195,9 @@ class Bgen_probe(object):
             self.Pmin = struct.unpack("B", genotypes_byte_unzip[6])[0]
             self.Pmax = struct.unpack("B", genotypes_byte_unzip[7])[0]
 
-            self.ploidy = ba.bitarray()
-            self.ploidy.frombytes(genotypes_byte_unzip[8:8 + self.N])
             if ploidy:
-                ploidy = []
-                for i in range(0, self.N * 8, 8):
-                    pl = self.ploidy[i:i + 8]
-                    if pl[0] == 1:
-                        ploidy.append(0)
-                    else:
-                        ploidy.append(int(pl[-6:].to01(), 2))
-                self.ploidy = np.array(ploidy)
+                self.ploidy = np.fromstring(genotypes_byte_unzip[8:8 + self.N], dtype=np.uint8)
+                self.ploidy[self.ploidy>=2**7]=0
 
                 if np.logical_and((self.ploidy != 0), (self.ploidy != 2)).any():
                     raise ValueError('Such ploidy is not supported {}!'.format(self.ploidy))
@@ -210,19 +211,22 @@ class Bgen_probe(object):
             if self.phased == 1:
                 raise ValueError('Phased data read is not implemented!')
             else:
-                decoder = {i: ba.bitarray(format(i, '0{}b'.format(self.B))) for i in range(2 ** self.B)}
-
                 prob_unzip = genotypes_byte_unzip[7 + self.N + 1 + 1 + 1:]
-                prob_unzip_splited = ba.bitarray(endian="little")
-                prob_unzip_splited.frombytes(prob_unzip)
-                self.prob = np.array(prob_unzip_splited.decode(decoder), dtype="int")
+                if self.B in self.type_dict:
+                    self.prob = np.fromstring(prob_unzip, dtype=self.type_dict[self.B])
+                else:
+                    if self.B <= 20:
+                        decoder = {i: ba.bitarray(format(i, '0{}b'.format(self.B))) for i in range(2 ** self.B)}
+                        prob_unzip_splited = ba.bitarray(endian="little")
+                        prob_unzip_splited.frombytes(prob_unzip)
+                        self.prob = np.array(prob_unzip_splited.decode(decoder), dtype="int")
 
                 self.C = float(2 ** self.B - 1)
                 self.prob = self.prob / self.C
 
                 if genotypes:
                     if self.prob.shape[0] / self.N != 2:
-                        raise ValueError('Should be two probabilities per subjects!')
+                        raise ValueError('Should be two probabilities per subject!')
                     M = self.prob.reshape(self.N, -1).T
                     self.genotypes = (np.array([2, 1]).reshape(2, 1) * M).sum(axis=0)
 
@@ -320,7 +324,7 @@ class Bgen(object):
             probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
             self.probes_info[probe.rsid] = [self.iter_pointer, f.tell()]
             self.iter_pointer = f.tell()
-            return probe
+        return probe
 
     def read_probe(self, rsid=None, start=None):
         with open(self.path) as f:
@@ -331,20 +335,21 @@ class Bgen(object):
             if start is not None:
                 self.seek(f, start)
                 probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
-                return probe
+        return probe
 
 
     def get_indices(self):
-        while True:
-            try:
-                probe_tmp=self.get_next_probe()
-                if probe_tmp is None:
-                    self._indices=True
+        if not self._indices:
+            while True:
+                try:
+                    probe_tmp=self.get_next_probe()
+                    if probe_tmp is None:
+                        self._indices=True
+                        break
+                except Exception, e:
+                    self._indices = True
+                    print e
                     break
-            except Exception, e:
-                self._indices = True
-                print e
-                break
 
     def save_indices(self, path):
         if self._indices:
