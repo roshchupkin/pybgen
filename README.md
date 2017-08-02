@@ -7,6 +7,9 @@ Below you can find several examples how you can get data in python format for fu
 * bgen v1.1; 1.2; 1.3
 * Layout 1,2
 
+** Fits for UK Biobank data **
+Want to convert to more efficient data format? Check  [HASE](https://github.com/roshchupkin/hase)
+
 ## Does not support
 * Ploidy > 2
 * Number of allele > 2
