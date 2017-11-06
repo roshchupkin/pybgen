@@ -4,6 +4,7 @@ from collections import OrderedDict
 import bitarray as ba
 import zlib
 import numpy as np
+import pandas as pd
 try:
     import zstd
 except:
@@ -242,6 +243,7 @@ class Bgen(object):
         print ('File zise is {} bytes'.format(self.size))
         self.identifier_block =None
         self._indices=False
+        self.bgi_txt=None
 
         try:
             self.offset = ba.bitarray(endian="little")
@@ -305,6 +307,7 @@ class Bgen(object):
             self.iter_pointer = self.start_probes
             self.bgen.close()
             self.probes_info = OrderedDict()
+            self.rsid_info={}
 
         except Exception, e:
             print e
@@ -322,21 +325,65 @@ class Bgen(object):
         with open(self.path) as f:
             self.seek(f, self.iter_pointer)
             probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
-            self.probes_info[probe.rsid] = [self.iter_pointer, f.tell()]
+            self.probes_info[probe.probe_iden ] = [self.iter_pointer, f.tell()]
+            if self.rsid_info.get(probe.rsid, 0) == 0:
+                self.rsid_info[probe.rsid]=[probe.probe_iden]
+            else:
+                self.rsid_info[probe.rsid].append(probe.probe_iden)
             self.iter_pointer = f.tell()
         return probe
 
-    def read_probe(self, rsid=None, start=None):
+    def read_probe(self, rsid=None, start=None, iden=None):
         with open(self.path) as f:
-            if rsid is not None and start is None:
-                start = self.probes_info.get(rsid, None)[0]
+            if iden is None:
+                start = self.probes_info.get(iden, None)[0]
                 if start is None:
+                    raise ValueError('IDEN is not known!')
+            elif rsid is not None:
+                iden=self.rsid_info.get(rsid, None)
+                if iden is None:
                     raise ValueError('RSID is not known!')
+                elif len(iden)>1:
+                    print ('There are several RSID for such IDEN, return all of them!')
+                    _=[]
+                    for i in iden:
+                        self.seek(f, self.probes_info.get(i, None)[0])
+                        _.append(    Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)       )
+                    return _
+                else:
+                    self.seek(f, self.probes_info.get(iden, None)[0])
+                    probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
             if start is not None:
                 self.seek(f, start)
                 probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
+
         return probe
 
+    def read_probe_bgi(self,chr=None, pos=None, rsid=None):
+        if self.bgi_txt is not None:
+            with open(self.path) as f:
+                if rsid is not None:
+                    probes=self.bgi_txt.query('rsid=="{}"'.format(rsid))
+                elif chr is not None and pos is not None:
+                    probes = self.bgi_txt.query('chromosome=={} and position=={}'.format(chr,pos))
+
+                if probes.shape[0]>1:
+                    print ('There are several RSID, return all of them!')
+                    _ = []
+                    for i in probes.file_start_position:
+                        self.seek(f, i)
+                        _.append(Bgen_probe(f, self.compression, self.N_ind, layout=self.layout))
+                    return _
+                else:
+                    self.seek(f, probes.file_start_position[0])
+                    probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
+
+        else:
+            raise ValueError('bgi file is not defined!')
+
+    def load_bgi_txt(self, path):
+        self.bgi_txt=pd.read_csv(path,sep=',')
+        self.bgi_txt['IDEN']=self.bgi_txt.apply(lambda x: "_".join(x.chromosome, x.position,x.allele1,x.allele2))
 
     def get_indices(self):
         if not self._indices:
@@ -353,7 +400,7 @@ class Bgen(object):
 
     def save_indices(self, path):
         if self._indices:
-            dict_tmp={'name':self.name,'probes':self.probes_info}
+            dict_tmp={'name':self.name,'probes':self.probes_info, 'rsid':self.rsid_info}
             np.save(os.path.join(path,self.name+ '_ind.npy'),dict_tmp)
 
 
@@ -368,6 +415,7 @@ class Bgen(object):
 
             else:
                 self.probes_info=dict_tmp['probes']
+                self.rsid_info = dict_tmp['rsid']
 
 
     def info(self):
