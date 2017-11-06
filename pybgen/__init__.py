@@ -375,7 +375,7 @@ class Bgen(object):
                         _.append(Bgen_probe(f, self.compression, self.N_ind, layout=self.layout))
                     return _
                 else:
-                    self.seek(f, probes.file_start_position[0])
+                    self.seek(f, probes.file_start_position)
                     probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
 
         else:
