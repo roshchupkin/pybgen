@@ -374,10 +374,13 @@ class Bgen(object):
                         self.seek(f, i)
                         _.append(Bgen_probe(f, self.compression, self.N_ind, layout=self.layout))
                     return _
-                else:
+                elif  probes.shape[0]==1:
                     self.seek(f, probes.file_start_position.tolist()[0])
                     probe = Bgen_probe(f, self.compression, self.N_ind, layout=self.layout)
-
+                    return probe
+                else:
+                    print ('Can not find variant!')
+                    return None
         else:
             raise ValueError('bgi file is not defined!')
 
