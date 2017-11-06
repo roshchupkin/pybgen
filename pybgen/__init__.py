@@ -383,7 +383,7 @@ class Bgen(object):
 
     def load_bgi_txt(self, path):
         self.bgi_txt=pd.read_csv(path,sep=',')
-        self.bgi_txt['IDEN']=self.bgi_txt.apply(lambda x: "_".join(x.chromosome, x.position,x.allele1,x.allele2))
+        #self.bgi_txt['IDEN']=self.bgi_txt.apply(lambda x: "_".join([x.chromosome, x.position,x.allele1,x.allele2]))
 
     def get_indices(self):
         if not self._indices:
