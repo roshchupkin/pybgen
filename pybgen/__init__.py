@@ -363,7 +363,10 @@ class Bgen(object):
         if self.bgi_txt is not None:
             with open(self.path) as f:
                 if rsid is not None:
-                    probes=self.bgi_txt.query('rsid=="{}"'.format(rsid))
+                    if chr is not None and pos is not None:
+                        probes = self.bgi_txt.query('chromosome=={} and position=={} and rsid=="{}"'.format(chr, pos, rsid))
+                    else:
+                        probes=self.bgi_txt.query('rsid=="{}"'.format(rsid))
                 elif chr is not None and pos is not None:
                     probes = self.bgi_txt.query('chromosome=={} and position=={}'.format(chr,pos))
 
@@ -386,7 +389,6 @@ class Bgen(object):
 
     def load_bgi_txt(self, path):
         self.bgi_txt=pd.read_csv(path,sep=',')
-        #self.bgi_txt['IDEN']=self.bgi_txt.apply(lambda x: "_".join([x.chromosome, x.position,x.allele1,x.allele2]))
 
     def get_indices(self):
         if not self._indices:
